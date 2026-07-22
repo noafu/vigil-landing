@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIGIL — AI Air & Missile Defense Decision Support</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0A0E17;
+    --bg-panel:#111826;
+    --bg-panel-2:#161F2E;
+    --steel:#3D5166;
+    --steel-light:#7C93A8;
+    --cyan:#5FD4D4;
+    --amber:#FF9F1C;
+    --off-white:#EDF1F5;
+    --line:rgba(124,147,168,0.18);
+    --radius:2px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg-deep);
+    color:var(--off-white);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.55;
+    overflow-x:hidden;
+  }
+  h1,h2,h3, .display{
+    font-family:'Space Grotesk', sans-serif;
+    letter-spacing:-0.01em;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{color:inherit; text-decoration:none;}
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 32px; }
+  section{ padding:120px 0; position:relative; }
+
+  /* faint grid texture across whole page */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:64px 64px;
+    opacity:.35;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    background:rgba(10,14,23,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    max-width:1180px; margin:0 auto; padding:20px 32px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; font-size:19px; letter-spacing:.02em; }
+  .brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan); animation:pulse 2.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  .nav-links{ display:flex; gap:26px; font-size:13.5px; color:var(--steel-light); }
+  .nav-links a:hover{ color:var(--off-white); }
+  .nav-cta{
+    font-size:13px; padding:10px 20px; border:1px solid var(--cyan);
+    color:var(--cyan); border-radius:var(--radius); letter-spacing:.04em;
+  }
+  .nav-cta:hover{ background:var(--cyan); color:var(--bg-deep); }
+  @media (max-width:760px){ .nav-links{ display:none; } }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:180px 0 100px;
+    display:grid; grid-template-columns:1.1fr 0.9fr; gap:40px; align-items:center;
+    z-index:1;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.16em;
+    color:var(--amber); text-transform:uppercase; margin-bottom:22px; display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--amber); }
+  .hero h1{
+    font-size:clamp(38px, 5vw, 62px); font-weight:600; line-height:1.06; margin-bottom:26px;
+  }
+  .hero h1 em{ font-style:normal; color:var(--cyan); }
+  .hero p.lede{ font-size:18px; color:var(--steel-light); max-width:480px; margin-bottom:36px; }
+  .btn-row{ display:flex; gap:16px; flex-wrap:wrap; }
+  .btn{
+    padding:15px 28px; border-radius:var(--radius); font-size:14px; font-weight:500;
+    letter-spacing:.03em; display:inline-flex; align-items:center; gap:10px; transition:.2s;
+  }
+  .btn-primary{ background:var(--cyan); color:var(--bg-deep); }
+  .btn-primary:hover{ background:#7fe0e0; }
+  .btn-ghost{ border:1px solid var(--steel); color:var(--off-white); }
+  .btn-ghost:hover{ border-color:var(--off-white); }
+
+  /* radar visual */
+  .radar-box{
+    position:relative; aspect-ratio:1/1; border-radius:50%;
+    background:radial-gradient(circle at center, var(--bg-panel-2) 0%, var(--bg-panel) 70%, var(--bg-deep) 100%);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .radar-ring{ position:absolute; border:1px solid var(--line); border-radius:50%; }
+  .r1{ width:25%; height:25%; } .r2{ width:50%; height:50%; } .r3{ width:75%; height:75%; } .r4{ width:100%; height:100%; }
+  .radar-sweep{
+    position:absolute; width:50%; height:50%; top:0; left:50%;
+    transform-origin:0% 100%;
+    background:conic-gradient(from 0deg, rgba(95,212,212,0.35), transparent 35%);
+    animation:spin 4s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .blip{ position:absolute; width:7px; height:7px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber); }
+  .blip.friendly{ background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+  .blip1{ top:28%; left:64%; animation:blink 3s infinite; }
+  .blip2{ top:62%; left:32%; animation:blink 3s infinite .8s; }
+  .blip3{ top:70%; left:70%; animation:blink 3s infinite 1.6s; }
+  .blip4{ top:40%; left:38%; animation:blink 3s infinite 2.2s; }
+  @keyframes blink{ 0%,100%{opacity:0;} 50%{opacity:1;} }
+  .radar-center{ width:6px; height:6px; background:var(--off-white); border-radius:50%; z-index:2; }
+  .radar-readout{
+    position:absolute; bottom:-14px; left:50%; transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--steel-light);
+    background:var(--bg-panel); padding:6px 14px; border:1px solid var(--line); border-radius:var(--radius);
+    white-space:nowrap;
+  }
+  @media (max-width:900px){ .hero{ grid-template-columns:1fr; } .radar-box{ max-width:340px; margin:0 auto; } }
+
+  /* ---------- STATS BAND ---------- */
+  .stats-band{
+    padding:56px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:var(--bg-panel);
+  }
+  .stats-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:32px; }
+  .stat-num{ font-family:'Space Grotesk',sans-serif; font-size:38px; font-weight:600; color:var(--cyan); }
+  .stat-label{ font-size:13px; color:var(--steel-light); margin-top:6px; }
+  @media (max-width:760px){ .stats-grid{ grid-template-columns:repeat(2,1fr); row-gap:36px; } }
+
+  /* ---------- SECTION HEADERS ---------- */
+  .section-head{ max-width:640px; margin-bottom:64px; }
+  .section-head .eyebrow{ margin-bottom:16px; }
+  .section-head h2{ font-size:clamp(28px,3.4vw,40px); font-weight:600; margin-bottom:16px; }
+  .section-head p{ color:var(--steel-light); font-size:16px; }
+
+  /* ---------- PILLARS ---------- */
+  .pillars{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+  .pillar{ background:var(--bg-panel); padding:40px 32px; }
+  .pillar .idx{ font-family:'IBM Plex Mono',monospace; color:var(--amber); font-size:13px; margin-bottom:24px; }
+  .pillar h3{ font-size:20px; margin-bottom:14px; }
+  .pillar p{ color:var(--steel-light); font-size:14.5px; }
+  @media (max-width:900px){ .pillars{ grid-template-columns:1fr; } }
+
+  /* ---------- TRUST / STANDARDS BAR ---------- */
+  .trust-bar{ border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:34px 0; }
+  .trust-label{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.12em; color:var(--steel-light); text-align:center; margin-bottom:22px; }
+  .trust-items{ display:flex; justify-content:center; gap:0; flex-wrap:wrap; }
+  .trust-items span{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--steel-light);
+    padding:0 28px; border-right:1px solid var(--line);
+  }
+  .trust-items span:last-child{ border-right:none; }
+  @media (max-width:760px){ .trust-items span{ border-right:none; padding:6px 16px; } }
+
+  /* ---------- DASHBOARD PREVIEW ---------- */
+  .preview{ background:var(--bg-deep); }
+  .preview-frame{
+    border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+    background:var(--bg-panel-2); box-shadow:0 40px 80px -30px rgba(0,0,0,0.6);
+  }
+  .preview-topbar{
+    display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line);
+    background:var(--bg-panel);
+  }
+  .preview-dot{ width:8px; height:8px; border-radius:50%; background:var(--steel); }
+  .preview-title{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--steel-light); margin-left:8px; }
+  .preview-body{ display:grid; grid-template-columns:200px 1fr 240px; min-height:340px; }
+  .preview-side{ border-right:1px solid var(--line); padding:20px 16px; }
+  .preview-side .item{ font-size:12.5px; color:var(--steel-light); padding:9px 0; border-bottom:1px solid var(--line); }
+  .preview-side .item.active{ color:var(--cyan); }
+  .preview-map{ position:relative; background:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:28px 28px; }
+  .preview-map .blip{ position:absolute; }
+  .preview-track{ position:absolute; width:120px; height:1px; background:var(--cyan); opacity:.5; top:45%; left:20%; transform:rotate(-12deg); }
+  .preview-panel{ border-left:1px solid var(--line); padding:20px 18px; }
+  .preview-panel h4{ font-size:12px; color:var(--steel-light); font-family:'IBM Plex Mono',monospace; margin-bottom:14px; letter-spacing:.05em; }
+  .preview-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .preview-row b{ color:var(--off-white); font-weight:500; }
+  .preview-row .ok{ color:var(--cyan); } .preview-row .warn{ color:var(--amber); }
+
+  /* ---------- FAQ ---------- */
+  .faq{ background:var(--bg-panel); }
+  .faq-list{ max-width:760px; }
+  .faq-item{ border-bottom:1px solid var(--line); padding:22px 0; }
+  .faq-item summary{
+    cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;
+    font-size:16px; font-weight:500; font-family:'Space Grotesk',sans-serif;
+  }
+  .faq-item summary::-webkit-details-marker{ display:none; }
+  .faq-item summary::after{ content:"+"; color:var(--cyan); font-size:20px; font-family:'IBM Plex Mono',monospace; flex-shrink:0; margin-left:20px; }
+  .faq-item[open] summary::after{ content:"−"; }
+  .faq-item p{ color:var(--steel-light); font-size:14.5px; margin-top:14px; max-width:640px; }
+
+  /* ---------- ABOUT (topic primer) ---------- */
+  .about{ background:var(--bg-deep); }
+  .about-inner{ max-width:820px; margin:0 auto; text-align:center; }
+  .about-inner .eyebrow{ justify-content:center; }
+  .about-inner h2{ font-size:clamp(28px,3.4vw,40px); font-weight:600; margin-bottom:24px; }
+  .about-inner p{ color:var(--steel-light); font-size:16.5px; text-align:left; margin-bottom:18px; }
+  .about-callout{
+    margin-top:36px; padding:22px 26px; border:1px solid rgba(95,212,212,0.35);
+    background:rgba(95,212,212,0.06); border-radius:var(--radius); text-align:left;
+    font-size:14.5px; color:var(--off-white);
+  }
+  .about-callout b{ color:var(--cyan); }
+
+  /* ---------- APPLICATIONS ICON GRID ---------- */
+  .apps-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+  .app-card{ background:var(--bg-panel); padding:36px 28px; }
+  .app-icon{
+    width:44px; height:44px; border-radius:50%; margin-bottom:22px;
+    background:rgba(95,212,212,0.12); border:1px solid rgba(95,212,212,0.35);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .app-icon svg{ width:20px; height:20px; }
+  .app-card h3{ font-size:17px; margin-bottom:10px; }
+  .app-card p{ color:var(--steel-light); font-size:13.5px; }
+  @media (max-width:900px){ .apps-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px){ .apps-grid{ grid-template-columns:1fr; } }
+
+  /* ---------- ETHICS / RISK GRID ---------- */
+  .ethics{ background:var(--bg-panel-2); }
+  .risk-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+  .risk-card{ background:var(--bg-panel-2); padding:32px 26px; }
+  .risk-card .idx{ font-family:'IBM Plex Mono',monospace; color:var(--amber); font-size:12px; margin-bottom:18px; letter-spacing:.05em; }
+  .risk-card h3{ font-size:16px; margin-bottom:10px; }
+  .risk-card p{ color:var(--steel-light); font-size:13.5px; }
+  @media (max-width:900px){ .risk-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px){ .risk-grid{ grid-template-columns:1fr; } }
+
+  /* ---------- OVERSIGHT / TRUST ---------- */
+  .oversight{ background:var(--bg-panel-2); }
+  .oversight-inner{ display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; }
+  .oversight-visual{
+    border:1px solid var(--line); border-radius:var(--radius); padding:32px;
+    background:var(--bg-deep);
+  }
+  .chain{ display:flex; flex-direction:column; gap:0; }
+  .chain-step{ display:flex; gap:16px; padding:18px 0; border-bottom:1px solid var(--line); align-items:flex-start; }
+  .chain-step:last-child{ border-bottom:none; }
+  .chain-step .tag{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.08em;
+    padding:4px 8px; border-radius:var(--radius); height:fit-content; white-space:nowrap; margin-top:2px;
+  }
+  .tag.ai{ background:rgba(95,212,212,0.12); color:var(--cyan); border:1px solid rgba(95,212,212,0.35); }
+  .tag.human{ background:rgba(255,159,28,0.12); color:var(--amber); border:1px solid rgba(255,159,28,0.35); }
+  .chain-step .txt strong{ display:block; font-size:14.5px; margin-bottom:2px; }
+  .chain-step .txt span{ font-size:13px; color:var(--steel-light); }
+  @media (max-width:900px){ .oversight-inner{ grid-template-columns:1fr; } }
+
+  /* ---------- CONTACT ---------- */
+  .contact{ background:var(--bg-panel); border-top:1px solid var(--line); }
+  .contact-inner{ display:grid; grid-template-columns:1fr 1fr; gap:64px; }
+  form{ display:flex; flex-direction:column; gap:20px; }
+  .field label{ display:block; font-size:12px; color:var(--steel-light); margin-bottom:8px; letter-spacing:.03em; text-transform:uppercase; font-family:'IBM Plex Mono',monospace; }
+  .field input, .field select, .field textarea{
+    width:100%; background:var(--bg-deep); border:1px solid var(--steel);
+    color:var(--off-white); padding:13px 14px; font-size:14px; border-radius:var(--radius);
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--cyan); }
+  .field textarea{ resize:vertical; min-height:90px; }
+  .submit-btn{ margin-top:8px; align-self:flex-start; cursor:pointer; border:none; font-family:inherit; }
+  .form-note{ font-size:12px; color:var(--steel-light); margin-top:6px; }
+  .success-msg{
+    display:none; padding:16px 18px; border:1px solid var(--cyan); color:var(--cyan);
+    border-radius:var(--radius); font-size:13.5px; margin-top:14px; font-family:'IBM Plex Mono',monospace;
+  }
+
+  footer{ padding:48px 0; border-top:1px solid var(--line); }
+  .footer-inner{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .footer-note{ font-size:12.5px; color:var(--steel-light); }
+
+  ::selection{ background:var(--cyan); color:var(--bg-deep); }
+
+  @media (prefers-reduced-motion: reduce){
+    .radar-sweep{ animation:none; }
+    .blip{ animation:none; opacity:1; }
+    .brand .dot{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="brand"><span class="dot"></span>VIGIL</div>
+    <div class="nav-links">
+      <a href="#about">About</a>
+      <a href="#how">How it works</a>
+      <a href="#ethics">Ethics</a>
+      <a href="#faq">FAQ</a>
+      <a href="#contact">Request briefing</a>
+    </div>
+    <a href="#contact" class="nav-cta">REQUEST DEMO</a>
+  </div>
+</nav>
+
+<section class="hero wrap">
+  <div>
+    <div class="eyebrow">Air &amp; Missile Defense · Decision Support</div>
+    <h1>Detect faster.<br>Decide together.<br><em>Never alone.</em></h1>
+    <p class="lede">VIGIL fuses radar, sensor, and threat data into a single real-time picture — inspired by research demonstrating AI-assisted threat detection in approximately 15 seconds, while keeping every engagement decision in human hands.</p>
+    <div class="btn-row">
+      <a href="#contact" class="btn btn-primary">Request a briefing →</a>
+      <a href="#how" class="btn btn-ghost">See how it works</a>
+    </div>
+  </div>
+  <div class="radar-box">
+    <div class="radar-ring r1"></div>
+    <div class="radar-ring r2"></div>
+    <div class="radar-ring r3"></div>
+    <div class="radar-ring r4"></div>
+    <div class="radar-sweep"></div>
+    <div class="blip blip1"></div>
+    <div class="blip blip2"></div>
+    <div class="blip friendly blip3"></div>
+    <div class="blip friendly blip4"></div>
+    <div class="radar-center"></div>
+    <div class="radar-readout">TRACKING · 24 OBJECTS · ALL CLEAR</div>
+  </div>
+</section>
+
+<div class="stats-band">
+  <div class="wrap stats-grid">
+    <div><div class="stat-num">92.9%</div><div class="stat-label">Average AI recognition accuracy</div></div>
+    <div><div class="stat-num">100</div><div class="stat-label">Missions analyzed</div></div>
+    <div><div class="stat-num">15<span style="font-size:20px;">s</span></div><div class="stat-label">Average threat detection time</div></div>
+    <div><div class="stat-num">85%</div><div class="stat-label">Interception success rate</div></div>
+  </div>
+</div>
+
+<div class="trust-bar">
+  <div class="wrap">
+    <div class="trust-label">CORE AI PRINCIPLES</div>
+    <div class="trust-items">
+      <span>Human-in-the-Loop</span>
+      <span>Explainable AI (XAI)</span>
+      <span>Sensor Fusion</span>
+      <span>Cross-Domain Solutions (CDS)</span>
+    </div>
+  </div>
+</div>
+
+<section id="about" class="about wrap">
+  <div class="about-inner">
+    <div class="eyebrow">About the technology</div>
+    <h2>What AI actually does in air defense</h2>
+    <p>Modern air and missile defense generates far more data than any human team can process in real time — radar returns, electro-optical feeds, signal intercepts, and satellite tracks, all arriving at once. AI is used to fuse these streams, flag threats as they emerge, recognize and classify targets, and surface the handful of decisions that actually need a person's attention.</p>
+    <p>In practice, that means faster threat detection, earlier trajectory warnings, and clearer situational awareness for the operators responsible for what happens next.</p>
+    <p>Recent academic research demonstrates that AI significantly improves threat detection, target classification, and real-time decision support by processing large volumes of sensor data more efficiently than traditional methods.</p>
+    <div class="about-callout">
+      <b>What it doesn't do:</b> the system does not decide when force is used. It narrows a flood of data down to a recommendation — a human operator always reviews, validates, and authorizes before any action is taken.
+    </div>
+  </div>
+</section>
+
+<section id="how" class="wrap">
+  <div class="section-head">
+    <div class="eyebrow">How it works</div>
+    <h2>Three systems. One shield.</h2>
+    <p>VIGIL doesn't replace the operator — it clears the noise so the operator can act on what matters.</p>
+  </div>
+  <div class="pillars">
+    <div class="pillar">
+      <div class="idx">01 — DETECT</div>
+      <h3>Sensor fusion</h3>
+      <p>Radar, electro-optical, and signal data are merged into a single track in real time, filtering background noise and flagging anomalies a single sensor would miss.</p>
+    </div>
+    <div class="pillar">
+      <div class="idx">02 — ASSESS</div>
+      <h3>Trajectory &amp; intent</h3>
+      <p>Predictive models forecast flight paths and threat classification, helping operators respond earlier and with greater confidence.</p>
+    </div>
+    <div class="pillar">
+      <div class="idx">03 — RECOMMEND</div>
+      <h3>Decision support</h3>
+      <p>VIGIL ranks response options by priority and resource cost — but never fires. Every recommendation ends on a screen, not an action.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" style="padding-top:0;">
+  <div class="section-head">
+    <div class="eyebrow">Core applications</div>
+    <h2>Where AI does the heaviest lifting</h2>
+    <p>Four capability areas make up the backbone of any modern AI-assisted air defense system.</p>
+  </div>
+  <div class="apps-grid">
+    <div class="app-card">
+      <div class="app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#5FD4D4" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="#5FD4D4"/><path d="M12 3v3M12 18v3M21 12h-3M6 12H3"/></svg></div>
+      <h3>Threat Detection</h3>
+      <p>Continuously scans radar, optical, and signal data to flag potential threats the moment they appear — including small or stealth objects a single sensor would miss.</p>
+    </div>
+    <div class="app-card">
+      <div class="app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#5FD4D4" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></div>
+      <h3>Target Recognition</h3>
+      <p>Classifies detected objects — aircraft, missile, drone, or friendly asset — using pattern recognition trained on historical sensor signatures.</p>
+    </div>
+    <div class="app-card">
+      <div class="app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#5FD4D4" stroke-width="1.6"><path d="M4 20L11 4l2 6 7-6-4 10-6-2z"/></svg></div>
+      <h3>Missile Interception</h3>
+      <p>Predicts incoming trajectories and proposes the optimal interceptor and timing window, dynamically re-assigning assets as the situation evolves.</p>
+    </div>
+    <div class="app-card">
+      <div class="app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#5FD4D4" stroke-width="1.6"><circle cx="8" cy="8" r="4"/><circle cx="16" cy="8" r="4"/><circle cx="12" cy="16" r="4"/></svg></div>
+      <h3>Sensor Fusion</h3>
+      <p>Merges radar, electro-optical, and signal sources into a single unified track, resolving conflicts and gaps between individual sensors.</p>
+    </div>
+  </div>
+</section>
+
+<section class="preview wrap">
+  <div class="section-head">
+    <div class="eyebrow">Inside the platform</div>
+    <h2>One screen, the whole picture.</h2>
+    <p>A simplified look at the operator view — live tracks on the left, the map in the center, recommended actions on the right.</p>
+  </div>
+  <div class="preview-frame">
+    <div class="preview-topbar">
+      <div class="preview-dot"></div><div class="preview-dot"></div><div class="preview-dot"></div>
+      <div class="preview-title">VIGIL OPERATOR CONSOLE — SECTOR 4</div>
+    </div>
+    <div class="preview-body">
+      <div class="preview-side">
+        <div class="item active">Track 0114 — Inbound</div>
+        <div class="item">Track 0115 — Friendly</div>
+        <div class="item">Track 0116 — Unknown</div>
+        <div class="item">Track 0117 — Friendly</div>
+        <div class="item">Track 0118 — Inbound</div>
+      </div>
+      <div class="preview-map">
+        <div class="blip" style="top:30%; left:60%; width:7px; height:7px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber);"></div>
+        <div class="blip" style="top:55%; left:35%; width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan);"></div>
+        <div class="blip" style="top:68%; left:72%; width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan);"></div>
+        <div class="preview-track"></div>
+      </div>
+      <div class="preview-panel">
+        <h4>RECOMMENDED ACTION</h4>
+        <div class="preview-row"><span>Track</span><b>0114</b></div>
+        <div class="preview-row"><span>Classification</span><b>Unconfirmed</b></div>
+        <div class="preview-row"><span>Intercept window</span><b>18s</b></div>
+        <div class="preview-row"><span>Asset ready</span><span class="ok">Yes</span></div>
+        <div class="preview-row"><span>Status</span><span class="warn">Awaiting operator</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="oversight" class="oversight">
+  <div class="wrap oversight-inner">
+    <div>
+      <div class="eyebrow">Why it's built this way</div>
+      <h2 style="font-size:clamp(26px,3vw,34px); margin-bottom:20px;">The system proposes. A person decides.</h2>
+      <p style="color:var(--steel-light); font-size:15.5px; margin-bottom:20px;">Every VIGIL deployment is built around one non-negotiable rule: a qualified human authorizes every use of force. The platform is designed to make that person faster and better-informed — never to make the choice for them.</p>
+      <p style="color:var(--steel-light); font-size:15.5px;">That's not a limitation. It's the reason commanders trust the recommendation in the first place.</p>
+    </div>
+    <div class="oversight-visual">
+      <div class="chain">
+        <div class="chain-step"><span class="tag ai">AI</span><div class="txt"><strong>Track &amp; classify</strong><span>Object identified, trajectory modeled</span></div></div>
+        <div class="chain-step"><span class="tag ai">AI</span><div class="txt"><strong>Rank response options</strong><span>Assets and intercept windows proposed</span></div></div>
+        <div class="chain-step"><span class="tag human">HUMAN</span><div class="txt"><strong>Review &amp; validate</strong><span>Operator checks recommendation against context</span></div></div>
+        <div class="chain-step"><span class="tag human">HUMAN</span><div class="txt"><strong>Authorize</strong><span>Final go / no-go decision, always</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ethics" class="ethics wrap">
+  <div class="section-head">
+    <div class="eyebrow">The hard part</div>
+    <h2>Ethical challenges this technology raises</h2>
+    <p>Deploying AI in a lethal-force context carries risks that any responsible program has to design around, not ignore.</p>
+  </div>
+  <div class="risk-grid">
+    <div class="risk-card">
+      <div class="idx">RISK 01</div>
+      <h3>Human control over lethal decisions</h3>
+      <p>Without a hard-coded authorization step, AI recommendations could drift toward autonomous use of force — the single most important line to hold.</p>
+    </div>
+    <div class="risk-card">
+      <div class="idx">RISK 02</div>
+      <h3>Bias in AI systems</h3>
+      <p>Training data that under-represents certain scenarios can lead to skewed threat classification and unequal outcomes.</p>
+    </div>
+    <div class="risk-card">
+      <div class="idx">RISK 03</div>
+      <h3>Errors &amp; hallucinations</h3>
+      <p>Models can produce confident but incorrect outputs, especially under incomplete or fast-changing battlefield conditions.</p>
+    </div>
+    <div class="risk-card">
+      <div class="idx">RISK 04</div>
+      <h3>Cyberattacks &amp; data manipulation</h3>
+      <p>Adversaries who compromise sensor feeds or model inputs can manipulate what the system "sees," with cascading downstream effects.</p>
+    </div>
+    <div class="risk-card">
+      <div class="idx">RISK 05</div>
+      <h3>Fully autonomous weapons</h3>
+      <p>Removing humans from the loop entirely raises the risk of unintended escalation and unaccountable use of lethal force.</p>
+    </div>
+    <div class="risk-card">
+      <div class="idx">RISK 06</div>
+      <h3>International regulation</h3>
+      <p>Shared norms and enforceable agreements between nations are essential to prevent an unregulated military AI arms race.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="faq">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom:40px;">
+      <div class="eyebrow">Questions we get</div>
+      <h2>Straight answers, no hedging.</h2>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item" open>
+        <summary>Who makes the final call to engage a target?</summary>
+        <p>A qualified human operator, every time. VIGIL surfaces a recommendation and the supporting evidence behind it — it does not have the authority to fire or engage on its own.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Can VIGIL be configured to act without human approval?</summary>
+        <p>No. Removing the authorization step is not a configuration option — it's a hard architectural boundary, not a setting an administrator can turn off.</p>
+      </details>
+      <details class="faq-item">
+        <summary>What happens when the system isn't confident about a track?</summary>
+        <p>Low-confidence tracks are flagged as such rather than rounded up to a clean answer. Operators see the uncertainty directly instead of a false sense of precision.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Why is human oversight essential?</summary>
+        <p>Because AI systems can be biased, produce confident-but-wrong outputs, or be manipulated through compromised data. A human in the loop catches what the model gets wrong before it becomes a real-world action.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Do operators need special training?</summary>
+        <p>Yes — every deployment includes a certification program covering both the interface and how to evaluate an AI recommendation critically, not just accept it.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="contact" class="contact">
+  <div class="wrap contact-inner">
+    <div>
+      <div class="eyebrow">Get in touch</div>
+      <h2 style="font-size:clamp(26px,3vw,34px); margin-bottom:16px;">Request a briefing</h2>
+      <p style="color:var(--steel-light); font-size:15.5px;">Tell us about your airspace and current systems. Our team will follow up to schedule a technical walkthrough — no commitment required.</p>
+    </div>
+    <div>
+      <form id="briefingForm">
+        <div class="field">
+          <label for="name">Full name</label>
+          <input type="text" id="name" required placeholder="Jordan Reyes">
+        </div>
+        <div class="field">
+          <label for="org">Organization</label>
+          <input type="text" id="org" required placeholder="Defense agency or unit">
+        </div>
+        <div class="field">
+          <label for="email">Work email</label>
+          <input type="email" id="email" required placeholder="you@organization.gov">
+        </div>
+        <div class="field">
+          <label for="interest">Primary interest</label>
+          <select id="interest">
+            <option>Threat detection & sensor fusion</option>
+            <option>Decision-support integration</option>
+            <option>Human-in-the-loop training</option>
+            <option>General information</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="msg">Message</label>
+          <textarea id="msg" placeholder="What are you looking to solve?"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary submit-btn">Submit request →</button>
+        <div class="form-note">We typically respond within two business days.</div>
+        <div class="success-msg" id="successMsg">✓ REQUEST LOGGED — a VIGIL specialist will contact you shortly.</div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="brand" style="font-size:15px;"><span class="dot"></span>VIGIL</div>
+    <div class="footer-note">Concept landing page created with Gamma, as part of an academic project for the AI Seminar course.</div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('briefingForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    document.getElementById('successMsg').style.display = 'block';
+    this.querySelector('.submit-btn').style.opacity = '0.6';
+    this.querySelector('.submit-btn').innerText = 'Submitted ✓';
+  });
+</script>
+
+</body>
+</html>
